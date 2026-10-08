@@ -13,12 +13,13 @@ module.exports = async (req, res) => {
         const height = 270;
         const halfWidth = width / 2;
 
+        // 1. Sfondi più vividi e contrastati per risaltare nell'interfaccia di Kodi
         const leftBg = await sharp({
-            create: { width: halfWidth, height: height, channels: 4, background: { r: 20, g: 20, b: 30, alpha: 1 } }
+            create: { width: halfWidth, height: height, channels: 4, background: { r: 15, g: 32, b: 67, alpha: 1 } } // Blu notte intenso
         }).png().toBuffer();
 
         const rightBg = await sharp({
-            create: { width: halfWidth, height: height, channels: 4, background: { r: 40, g: 20, b: 20, alpha: 1 } }
+            create: { width: halfWidth, height: height, channels: 4, background: { r: 90, g: 20, b: 35, alpha: 1 } } // Rosso bordeaux brillante
         }).png().toBuffer();
 
         const fetchImage = async (url) => {
@@ -35,32 +36,42 @@ module.exports = async (req, res) => {
         const t1Buffer = await fetchImage(t1);
         const t2Buffer = await fetchImage(t2);
 
+        // Ridimensionamento loghi squadre (ottimizzato per lasciare il giusto respiro)
         const resizedT1 = await sharp(t1Buffer)
-            .resize(180, 180, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .resize(160, 160, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
             .toBuffer();
 
         const resizedT2 = await sharp(t2Buffer)
-            .resize(180, 180, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .resize(160, 160, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
             .toBuffer();
 
         let compositePipeline = [
             { input: leftBg, top: 0, left: 0 },
             { input: rightBg, top: 0, left: halfWidth },
-            { input: resizedT1, left: Math.floor((halfWidth - 180) / 2), top: Math.floor((height - 180) / 2) },
-            { input: resizedT2, left: halfWidth + Math.floor((halfWidth - 180) / 2), top: Math.floor((height - 180) / 2) }
+            { input: resizedT1, left: Math.floor((halfWidth - 160) / 2), top: Math.floor((height - 160) / 2) },
+            { input: resizedT2, left: halfWidth + Math.floor((halfWidth - 160) / 2), top: Math.floor((height - 160) / 2) }
         ];
 
+        // 3. Gestione e centratura perfetta del logo competizione
         if (comp) {
             try {
                 const compBuffer = await fetchImage(comp);
-                const resizedComp = await sharp(compBuffer)
-                    .resize(90, 50, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                const compSharp = sharp(compBuffer);
+                
+                // Ridimensionamento proporzionale del logo competizione
+                const resizedCompBuffer = await compSharp
+                    .resize(140, 45, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
 
+                // Leggiamo le dimensioni reali risultanti per un centratura perfetta
+                const resizedMeta = await sharp(resizedCompBuffer).metadata();
+                const compWidth = resizedMeta.width || 90;
+                const compHeight = resizedMeta.height || 35;
+
                 compositePipeline.push({
-                    input: resizedComp,
-                    top: height - 60,
-                    left: Math.floor((width - 90) / 2)
+                    input: resizedCompBuffer,
+                    top: height - compHeight - 10, // Posizionato in basso con margine ottimale
+                    left: Math.floor((width - compWidth) / 2) // Centrato perfettamente in orizzontale
                 });
             } catch (e) {
                 console.error("Errore caricamento logo competizione:", e);
