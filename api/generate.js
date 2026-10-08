@@ -27,29 +27,25 @@ module.exports = async (req, res) => {
         const t1Buffer = await fetchImage(t1);
         const t2Buffer = await fetchImage(t2);
 
-        // Funzione per estrarre il colore dominante riducendo l'immagine a 1x1 pixel
+        // Estrazione colore dominante pulendo prima la trasparenza con .trim()
         const getDominantColor = async (buffer, defaultColor) => {
             try {
                 const { data } = await sharp(buffer)
+                    .trim() // Rimuove i bordi trasparenti prima di calcolare il colore
                     .resize(1, 1, { fit: 'fill' })
                     .raw()
                     .toBuffer({ resolveWithObject: true });
                 
-                // Se il colore è trasparente o bianco/nero puro, usiamo il fallback di sicurezza
-                if (data[3] < 30 || (data[0] > 240 && data[1] > 240 && data[2] > 240)) {
-                    return defaultColor;
-                }
                 return { r: data[0], g: data[1], b: data[2], alpha: 1 };
             } catch (e) {
                 return defaultColor;
             }
         };
 
-        // Estraiamo i colori adattivi dai loghi delle due squadre (con fallback personalizzati)
-        const color1 = await getDominantColor(t1Buffer, { r: 20, g: 30, b: 60 });
-        const color2 = await getDominantColor(t2Buffer, { r: 60, g: 20, b: 30 });
+        const color1 = await getDominantColor(t1Buffer, { r: 50, g: 30, b: 90 });
+        const color2 = await getDominantColor(t2Buffer, { r: 180, g: 30, b: 30 });
 
-        // Creazione dei sfondi dinamici basati sui colori estratti
+        // Creazione sfondi dinamici con i colori estratti dai loghi
         const leftBg = await sharp({
             create: { width: halfWidth, height: height, channels: 4, background: color1 }
         }).png().toBuffer();
