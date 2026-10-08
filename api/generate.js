@@ -22,10 +22,14 @@ module.exports = async (req, res) => {
             create: { width: halfWidth, height: height, channels: 4, background: { r: 40, g: 20, b: 20, alpha: 1 } }
         }).png().toBuffer();
 
-        // 2. Download dei loghi delle squadre e della competizione (se presente)
+        // 2. Download dei loghi con User-Agent per evitare blocchi server-side
         const fetchImage = async (url) => {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Errore fetch ${url}`);
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+            if (!response.ok) throw new Error(`Errore fetch ${url} - Status: ${response.status}`);
             const arrayBuffer = await response.arrayBuffer();
             return Buffer.from(arrayBuffer);
         };
