@@ -13,15 +13,6 @@ module.exports = async (req, res) => {
         const height = 270;
         const halfWidth = width / 2;
 
-        // 1. Sfondi più vividi e contrastati per risaltare nell'interfaccia di Kodi
-        const leftBg = await sharp({
-            create: { width: halfWidth, height: height, channels: 4, background: { r: 15, g: 32, b: 67, alpha: 1 } } // Blu notte intenso
-        }).png().toBuffer();
-
-        const rightBg = await sharp({
-            create: { width: halfWidth, height: height, channels: 4, background: { r: 90, g: 20, b: 35, alpha: 1 } } // Rosso bordeaux brillante
-        }).png().toBuffer();
-
         const fetchImage = async (url) => {
             const response = await fetch(url, {
                 headers: {
@@ -36,7 +27,38 @@ module.exports = async (req, res) => {
         const t1Buffer = await fetchImage(t1);
         const t2Buffer = await fetchImage(t2);
 
-        // Ridimensionamento loghi squadre (ottimizzato per lasciare il giusto respiro)
+        // Funzione per estrarre il colore dominante riducendo l'immagine a 1x1 pixel
+        const getDominantColor = async (buffer, defaultColor) => {
+            try {
+                const { data } = await sharp(buffer)
+                    .resize(1, 1, { fit: 'fill' })
+                    .raw()
+                    .toBuffer({ resolveWithObject: true });
+                
+                // Se il colore è trasparente o bianco/nero puro, usiamo il fallback di sicurezza
+                if (data[3] < 30 || (data[0] > 240 && data[1] > 240 && data[2] > 240)) {
+                    return defaultColor;
+                }
+                return { r: data[0], g: data[1], b: data[2], alpha: 1 };
+            } catch (e) {
+                return defaultColor;
+            }
+        };
+
+        // Estraiamo i colori adattivi dai loghi delle due squadre (con fallback personalizzati)
+        const color1 = await getDominantColor(t1Buffer, { r: 20, g: 30, b: 60 });
+        const color2 = await getDominantColor(t2Buffer, { r: 60, g: 20, b: 30 });
+
+        // Creazione dei sfondi dinamici basati sui colori estratti
+        const leftBg = await sharp({
+            create: { width: halfWidth, height: height, channels: 4, background: color1 }
+        }).png().toBuffer();
+
+        const rightBg = await sharp({
+            create: { width: halfWidth, height: height, channels: 4, background: color2 }
+        }).png().toBuffer();
+
+        // Ridimensionamento loghi squadre
         const resizedT1 = await sharp(t1Buffer)
             .resize(160, 160, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
             .toBuffer();
@@ -52,26 +74,22 @@ module.exports = async (req, res) => {
             { input: resizedT2, left: halfWidth + Math.floor((halfWidth - 160) / 2), top: Math.floor((height - 160) / 2) }
         ];
 
-        // 3. Gestione e centratura perfetta del logo competizione
+        // Gestione logo competizione centrato
         if (comp) {
             try {
                 const compBuffer = await fetchImage(comp);
-                const compSharp = sharp(compBuffer);
-                
-                // Ridimensionamento proporzionale del logo competizione
-                const resizedCompBuffer = await compSharp
+                const resizedCompBuffer = await sharp(compBuffer)
                     .resize(140, 45, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
 
-                // Leggiamo le dimensioni reali risultanti per un centratura perfetta
                 const resizedMeta = await sharp(resizedCompBuffer).metadata();
                 const compWidth = resizedMeta.width || 90;
                 const compHeight = resizedMeta.height || 35;
 
                 compositePipeline.push({
                     input: resizedCompBuffer,
-                    top: height - compHeight - 10, // Posizionato in basso con margine ottimale
-                    left: Math.floor((width - compWidth) / 2) // Centrato perfettamente in orizzontale
+                    top: height - compHeight - 10,
+                    left: Math.floor((width - compWidth) / 2)
                 });
             } catch (e) {
                 console.error("Errore caricamento logo competizione:", e);
