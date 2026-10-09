@@ -2,7 +2,8 @@
   "name": "match-logo-generator",
   "version": "1.0.0",
   "dependencies": {
-    "sharp": "^0.33.2",
-    "@img/sharp-linux-x64": "^0.33.2"
+    "sharp": "^0.33.0",
+    "@img/sharp-linux-x64": "^0.33.0",
+    "opentype.js": "^1.3.4"
   }
 }
