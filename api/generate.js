@@ -7,9 +7,6 @@ module.exports = async (req, res) => {
     const { t1, t2, time, hname, aname, mode, bg1, bg2 } = req.query;
 
     try {
-        const width = 500;
-        const height = 270;
-
         const fetchImage = async (url) => {
             if (!url) return null;
             try {
@@ -24,24 +21,28 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Banner orizzontale con orario e testi)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Trasparente, max height ridotta, orario e loghi affiancati)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
+            const width = 500;
+            const height = 160; // Altezza limitata per evitare tagli su Kodi
+
+            // Canvas trasparente senza sfondo
             const baseBg = await sharp({
-                create: { width: width, height: height, channels: 4, background: { r: 30, g: 32, b: 40, alpha: 1 } }
+                create: { width: width, height: height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 55;
-            const leftPos = 40;
+            const logoSize = 45;
 
+            // Loghi posizionati in verticale a sinistra ma compatti
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 75, left: leftPos });
+                compositeOps.push({ input: r1, top: 25, left: 105 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 155, left: leftPos });
+                compositeOps.push({ input: r2, top: 85, left: 105 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "18:30";
@@ -54,20 +55,24 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    const timePath = font.getPath(matchTime, 120, 62, 26).toPathData(2);
-                    const homePath = font.getPath(homeText, 120, 115, 22).toPathData(2);
-                    const awayPath = font.getPath(awayText, 120, 195, 22).toPathData(2);
+                    // Orario affiancato a sinistra (es. 18:30 |)
+                    const timePath = font.getPath(matchTime, 10, 85, 24).toPathData(2);
+                    const homePath = font.getPath(homeText, 160, 58, 20).toPathData(2);
+                    const awayPath = font.getPath(awayText, 160, 118, 20).toPathData(2);
+                    const sepPath = font.getPath('|', 85, 85, 24).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
+                        <path d="${sepPath}" fill="#ffffff" opacity="0.6" />
                         <path d="${homePath}" fill="#ffffff" />
                         <path d="${awayPath}" fill="#ffffff" />
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="120" y="62" font-family="Arial" font-size="26" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="120" y="115" font-family="Arial" font-size="22" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="120" y="195" font-family="Arial" font-size="22" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="10" y="85" font-family="Arial" font-size="24" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="85" y="85" font-family="Arial" font-size="24" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="160" y="58" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="160" y="118" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
@@ -81,8 +86,11 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 2: TILE IN BASSO (Sfondi colorati delle squadre + loghi grandi)
+        // MODALITÀ 2: TILE MATCH IN BASSO (Solo sfondi divisi e loghi grandi, zero testi)[cite: 4, 6]
         // -----------------------------------------------------------------
+        const width = 500;
+        const height = 270;
+
         const hexToRgb = (hex) => {
             const cleanHex = hex ? hex.replace('#', '') : '1e2e28';
             const bigint = parseInt(cleanHex, 16);
@@ -92,52 +100,31 @@ module.exports = async (req, res) => {
         const rgb1 = hexToRgb(bg1 || 'a6192e');
         const rgb2 = hexToRgb(bg2 || 'e30613');
 
-        // Sfondo base scuro complessivo
         const baseTileBg = await sharp({
             create: { width: width, height: height, channels: 4, background: { r: 30, g: 32, b: 40, alpha: 1 } }
         }).png().toBuffer();
 
         let tileComposite = [];
-
-        // Creiamo rettangoli colorati per la metà sinistra e destra usando SVG o blocchi di colore puliti
         const halfW = Math.floor(width / 2);
+        
         const splitBgSvg = `
         <svg width="${width}" height="${height}">
             <rect x="0" y="0" width="${halfW}" height="${height}" fill="rgb(${rgb1.r}, ${rgb1.g}, ${rgb1.b})" />
             <rect x="${halfW}" y="0" width="${width - halfW}" height="${height}" fill="rgb(${rgb2.r}, ${rgb2.g}, ${rgb2.b})" />
-            <rect x="0" y="210" width="${width}" height="60" fill="rgba(0,0,0,0.5)" />
         </svg>`;
 
         tileComposite.push({ input: Buffer.from(splitBgSvg, 'utf-8'), top: 0, left: 0 });
 
         // Loghi grandi al centro delle rispettive metà
-        const bigLogoSize = 120;
+        const bigLogoSize = 140;
         if (t1Buffer) {
             const r1 = await sharp(t1Buffer).resize(bigLogoSize, bigLogoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-            tileComposite.push({ input: r1, top: 45, left: Math.floor(halfW / 2) - Math.floor(bigLogoSize / 2) });
+            tileComposite.push({ input: r1, top: Math.floor((height - bigLogoSize) / 2), left: Math.floor(halfW / 2) - Math.floor(bigLogoSize / 2) });
         }
         if (t2Buffer) {
             const r2 = await sharp(t2Buffer).resize(bigLogoSize, bigLogoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-            tileComposite.push({ input: r2, top: 45, left: halfW + Math.floor((width - halfW) / 2) - Math.floor(bigLogoSize / 2) });
+            tileComposite.push({ input: r2, top: Math.floor((height - bigLogoSize) / 2), left: halfW + Math.floor((width - halfW) / 2) - Math.floor(bigLogoSize / 2) });
         }
-
-        // Testo in basso nella tile
-        const matchTitleText = `${hname || 'Team 1'} vs ${aname || 'Team 2'}`;
-        const fontPath = path.join(process.cwd(), 'fonts', 'Rubik-Bold.ttf');
-        
-        let titleSvg = `<svg width="${width}" height="${height}">`;
-        if (fs.existsSync(fontPath)) {
-            try {
-                const font = opentype.loadSync(fontPath);
-                const textPath = font.getPath(matchTitleText, 20, 248, 20).toPathData(2);
-                titleSvg += `<path d="${textPath}" fill="#ffffff" />`;
-            } catch (err) {
-                titleSvg += `<text x="20" y="248" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${matchTitleText}</text>`;
-            }
-        }
-        titleSvg += `</svg>`;
-
-        tileComposite.push({ input: Buffer.from(titleSvg, 'utf-8'), top: 0, left: 0 });
 
         const finalTile = await sharp(baseTileBg)
             .composite(tileComposite)
