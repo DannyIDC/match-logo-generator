@@ -1,4 +1,4 @@
-onst sharp = require('sharp');
+const sharp = require('sharp');
 
 module.exports = async (req, res) => {
     const { t1, t2, bg1, bg2, comp, mode } = req.query;
