@@ -21,11 +21,11 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Trasparente, max height ridotta, orario e loghi affiancati)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Alta definizione 800x280, trasparente, proporzionato)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
-            const width = 500;
-            const height = 160; // Altezza limitata per evitare tagli su Kodi
+            const width = 800;
+            const height = 280;
 
             // Canvas trasparente senza sfondo
             const baseBg = await sharp({
@@ -33,16 +33,16 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 45;
+            const logoSize = 75; // Loghi più grandi e definiti
 
-            // Loghi posizionati in verticale a sinistra ma compatti
+            // Loghi posizionati in verticale a sinistra
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 25, left: 105 });
+                compositeOps.push({ input: r1, top: 40, left: 175 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 85, left: 105 });
+                compositeOps.push({ input: r2, top: 145, left: 175 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "18:30";
@@ -55,11 +55,11 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    // Orario affiancato a sinistra (es. 18:30 |)
-                    const timePath = font.getPath(matchTime, 10, 85, 24).toPathData(2);
-                    const homePath = font.getPath(homeText, 160, 58, 20).toPathData(2);
-                    const awayPath = font.getPath(awayText, 160, 118, 20).toPathData(2);
-                    const sepPath = font.getPath('|', 85, 85, 24).toPathData(2);
+                    // Orario affiancato a sinistra seguito dal separatore
+                    const timePath = font.getPath(matchTime, 15, 155, 38).toPathData(2);
+                    const homePath = font.getPath(homeText, 275, 95, 34).toPathData(2);
+                    const awayPath = font.getPath(awayText, 275, 200, 34).toPathData(2);
+                    const sepPath = font.getPath('|', 135, 155, 38).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -69,10 +69,10 @@ module.exports = async (req, res) => {
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="10" y="85" font-family="Arial" font-size="24" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="85" y="85" font-family="Arial" font-size="24" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="160" y="58" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="160" y="118" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="15" y="155" font-family="Arial" font-size="38" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="135" y="155" font-family="Arial" font-size="38" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="275" y="95" font-family="Arial" font-size="34" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="275" y="200" font-family="Arial" font-size="34" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 2: TILE MATCH IN BASSO (Solo sfondi divisi e loghi grandi, zero testi)[cite: 4, 6]
+        // MODALITÀ 2: TILE MATCH IN BASSO (Invariata, pulita e senza testi)
         // -----------------------------------------------------------------
         const width = 500;
         const height = 270;
@@ -115,7 +115,6 @@ module.exports = async (req, res) => {
 
         tileComposite.push({ input: Buffer.from(splitBgSvg, 'utf-8'), top: 0, left: 0 });
 
-        // Loghi grandi al centro delle rispettive metà
         const bigLogoSize = 140;
         if (t1Buffer) {
             const r1 = await sharp(t1Buffer).resize(bigLogoSize, bigLogoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
