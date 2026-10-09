@@ -32,18 +32,17 @@ module.exports = async (req, res) => {
                 .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .toBuffer();
 
-            // Decodifica sicura dei testi per evitare caratteri corrotti o strani
             const matchTime = time ? decodeURIComponent(time) : "18:30";
             const homeText = hname ? decodeURIComponent(hname) : "Heidenheim";
             const awayText = aname ? decodeURIComponent(aname) : "Kaiserslautern";
 
-            // Usiamo 'DejaVu Sans' che è nativamente presente sui server Linux di Vercel
+            // SVG con font di sistema universale e fallback robusto per evitare qualsiasi carattere corrotto
             const svgText = `
                 <svg width="${width}" height="${height}">
                     <style>
-                        .time { fill: #ffffff; font-family: 'DejaVu Sans', sans-serif; font-size: 32px; font-weight: bold; }
-                        .separator { fill: #aaaaaa; font-family: 'DejaVu Sans', sans-serif; font-size: 32px; font-weight: bold; }
-                        .team { fill: #ffffff; font-family: 'DejaVu Sans', sans-serif; font-size: 26px; font-weight: bold; }
+                        .time { fill: #ffffff; font-family: Arial, Helvetica, sans-serif; font-size: 32px; font-weight: bold; }
+                        .separator { fill: #aaaaaa; font-family: Arial, Helvetica, sans-serif; font-size: 32px; font-weight: bold; }
+                        .team { fill: #ffffff; font-family: Arial, Helvetica, sans-serif; font-size: 26px; font-weight: bold; }
                     </style>
                     <text x="10" y="95" class="time">${matchTime}</text>
                     <text x="115" y="95" class="separator">|</text>
@@ -52,13 +51,13 @@ module.exports = async (req, res) => {
                 </svg>
             `;
 
-            const svgBuffer = Buffer.from(svgText);
+            const svgBuffer = Buffer.from(svgText, 'utf-8');
 
             const finalImage = await sharp(baseBg)
                 .composite([
                     { input: svgBuffer, top: 0, left: 0 },
-                    { input: resizedT1, top: 32, left: 145 }, // Logo casa prima riga
-                    { input: resizedT2, top: 82, left: 145 }  // Logo trasferta seconda riga
+                    { input: resizedT1, top: 32, left: 145 },
+                    { input: resizedT2, top: 82, left: 145 }
                 ])
                 .png()
                 .toBuffer();
