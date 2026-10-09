@@ -1,6 +1,7 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
+const opentype = require('opentype.js');
 
 module.exports = async (req, res) => {
     const { t1, t2, time, hname, aname, mode } = req.query;
@@ -34,37 +35,36 @@ module.exports = async (req, res) => {
                 .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .toBuffer();
 
-            // Decodifica sicura dei parametri testuali
             const matchTime = time ? decodeURIComponent(time) : "18:30";
             const homeText = hname ? decodeURIComponent(hname) : "Heidenheim";
             const awayText = aname ? decodeURIComponent(aname) : "Kaiserslautern";
 
-            // Percorso del font caricato nella cartella fonts del repository (assicurati che il nome file corrisponda, es. Rubik-Bold.ttf o Arial.ttf)
-            // Se hai caricato un file con nome diverso, modifica 'Rubik-Bold.ttf' qui sotto di conseguenza:
-            const fontFilename = 'Rubik-Bold.ttf'; // Modifica se hai usato es. Arial.ttf
+            // Percorso del font nella cartella fonts del repository
+            const fontFilename = 'Rubik-Bold.ttf'; // Assicurati che corrisponda al nome esatto del file caricato
             const fontPath = path.join(process.cwd(), 'fonts', fontFilename);
             
-            let fontBase64 = '';
+            let timePaths = '';
+            let sepPaths = '';
+            let homePaths = '';
+            let awayPaths = '';
+
             if (fs.existsSync(fontPath)) {
-                fontBase64 = fs.readFileSync(fontPath).toString('base64');
+                const font = opentype.loadSync(fontPath);
+                
+                // Conversione diretta del testo in tracciati vettoriali geometrici (senza bisogno di font di sistema)
+                timePaths = font.getPath(matchTime, 10, 92, 32).toPathData(2);
+                sepPaths = font.getPath('|', 115, 92, 32).toPathData(2);
+                homePaths = font.getPath(homeText, 195, 58, 26).toPathData(2);
+                awayPaths = font.getPath(awayText, 195, 108, 26).toPathData(2);
             }
 
-            // SVG con @font-face incorporato per il rendering perfetto su Linux/Vercel
+            // SVG pulito basato solo su forme geometriche vettoriali (<path>)
             const svgText = `
                 <svg width="${width}" height="${height}">
-                    <style>
-                        @font-face {
-                            font-family: 'KodiFont';
-                            src: url(data:font/truetype;charset=utf-8;base64,${fontBase64});
-                        }
-                        .time { fill: #ffffff; font-family: 'KodiFont', Arial, sans-serif; font-size: 32px; font-weight: bold; }
-                        .separator { fill: #aaaaaa; font-family: 'KodiFont', Arial, sans-serif; font-size: 32px; font-weight: bold; }
-                        .team { fill: #ffffff; font-family: 'KodiFont', Arial, sans-serif; font-size: 26px; font-weight: bold; }
-                    </style>
-                    <text x="10" y="95" class="time">${matchTime}</text>
-                    <text x="115" y="95" class="separator">|</text>
-                    <text x="195" y="62" class="team">${homeText}</text>
-                    <text x="195" y="112" class="team">${awayText}</text>
+                    <path d="${timePaths}" fill="#ffffff" />
+                    <path d="${sepPaths}" fill="#aaaaaa" />
+                    <path d="${homePaths}" fill="#ffffff" />
+                    <path d="${awayPaths}" fill="#ffffff" />
                 </svg>
             `;
 
@@ -73,8 +73,8 @@ module.exports = async (req, res) => {
             const finalImage = await sharp(baseBg)
                 .composite([
                     { input: svgBuffer, top: 0, left: 0 },
-                    { input: resizedT1, top: 32, left: 145 }, // Logo squadra in alto
-                    { input: resizedT2, top: 82, left: 145 }  // Logo squadra in basso
+                    { input: resizedT1, top: 32, left: 145 },
+                    { input: resizedT2, top: 82, left: 145 }
                 ])
                 .png()
                 .toBuffer();
