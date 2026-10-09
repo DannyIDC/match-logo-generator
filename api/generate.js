@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (stile banner orizzontale con orario e testi)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Banner orizzontale con orario e testi)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const baseBg = await sharp({
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 2: TILE IN BASSO (sfondi divisi a metà con loghi grandi come nel tuo secondo screenshot)
+        // MODALITÀ 2: TILE IN BASSO (Sfondi colorati delle squadre + loghi grandi)
         // -----------------------------------------------------------------
         const hexToRgb = (hex) => {
             const cleanHex = hex ? hex.replace('#', '') : '1e2e28';
@@ -89,66 +89,67 @@ module.exports = async (req, res) => {
             return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
         };
 
-        const color1 = hexToRgb(bg1 || 'a6192e');
-        const color2 = hexToRgb(bg2 || 'e30613');
+        const rgb1 = hexToRgb(bg1 || 'a6192e');
+        const rgb2 = hexToRgb(bg2 || 'e30613');
 
-        // Creiamo due metà per lo sfondo (stile il tuo secondo screenshot)[cite: 4, 6]
-        const halfWidth = Math.floor(width / 2);
-        
-        const leftBg = await sharp({
-            create: { width: halfWidth, height: height, channels: 4, background: { ...color1, alpha: 1 } }
+        // Sfondo base scuro complessivo
+        const baseTileBg = await sharp({
+            create: { width: width, height: height, channels: 4, background: { r: 30, g: 32, b: 40, alpha: 1 } }
         }).png().toBuffer();
 
-        const rightBg = await sharp({
-            create: { width: width - halfWidth, height: height, channels: 4, background: { ...color2, alpha: 1 } }
-        }).png().toBuffer();
+        let tileComposite = [];
 
-        let tileComposite = [
-            { input: rightBg, left: halfWidth, top: 0 }
-        ];
+        // Creiamo rettangoli colorati per la metà sinistra e destra usando SVG o blocchi di colore puliti
+        const halfW = Math.floor(width / 2);
+        const splitBgSvg = `
+        <svg width="${width}" height="${height}">
+            <rect x="0" y="0" width="${halfW}" height="${height}" fill="rgb(${rgb1.r}, ${rgb1.g}, ${rgb1.b})" />
+            <rect x="${halfW}" y="0" width="${width - halfW}" height="${height}" fill="rgb(${rgb2.r}, ${rgb2.g}, ${rgb2.b})" />
+            <rect x="0" y="210" width="${width}" height="60" fill="rgba(0,0,0,0.5)" />
+        </svg>`;
+
+        tileComposite.push({ input: Buffer.from(splitBgSvg, 'utf-8'), top: 0, left: 0 });
 
         // Loghi grandi al centro delle rispettive metà
-        const bigLogoSize = 130;
+        const bigLogoSize = 120;
         if (t1Buffer) {
             const r1 = await sharp(t1Buffer).resize(bigLogoSize, bigLogoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-            tileComposite.push({ input: r1, top: 45, left: Math.floor(halfWidth / 2) - Math.floor(bigLogoSize / 2) });
+            tileComposite.push({ input: r1, top: 45, left: Math.floor(halfW / 2) - Math.floor(bigLogoSize / 2) });
         }
         if (t2Buffer) {
             const r2 = await sharp(t2Buffer).resize(bigLogoSize, bigLogoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-            tileComposite.push({ input: r2, top: 45, left: halfWidth + Math.floor((width - halfWidth) / 2) - Math.floor(bigLogoSize / 2) });
+            tileComposite.push({ input: r2, top: 45, left: halfW + Math.floor((width - halfW) / 2) - Math.floor(bigLogoSize / 2) });
         }
 
-        // Testo in basso nella tile (es. "Heidenheim vs Kaiserslautern | 1")[cite: 4, 6]
+        // Testo in basso nella tile
         const matchTitleText = `${hname || 'Team 1'} vs ${aname || 'Team 2'}`;
         const fontPath = path.join(process.cwd(), 'fonts', 'Rubik-Bold.ttf');
         
-        let tileSvg = `<svg width="${width}" height="${height}">`;
-        // Rettangolo semi-trasparente inferiore per la caption
-        tileSvg += `<rect x="0" y="210" width="${width}" height="60" fill="rgba(0,0,0,0.6)" />`;
-
+        let titleSvg = `<svg width="${width}" height="${height}">`;
         if (fs.existsSync(fontPath)) {
             try {
                 const font = opentype.loadSync(fontPath);
-                const textPath = font.getPath(matchTitleText, 20, 245, 20).toPathData(2);
-                tileSvg += `<path d="${textPath}" fill="#ffffff" />`;
+                const textPath = font.getPath(matchTitleText, 20, 248, 20).toPathData(2);
+                titleSvg += `<path d="${textPath}" fill="#ffffff" />`;
             } catch (err) {
-                tileSvg += `<text x="20" y="245" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${matchTitleText}</text>`;
+                titleSvg += `<text x="20" y="248" font-family="Arial" font-size="20" font-weight="bold" fill="#ffffff">${matchTitleText}</text>`;
             }
         }
-        tileSvg += `</svg>`;
+        titleSvg += `</svg>`;
 
-        tileComposite.push({ input: Buffer.from(tileSvg, 'utf-8'), top: 0, left: 0 });
+        tileComposite.push({ input: Buffer.from(titleSvg, 'utf-8'), top: 0, left: 0 });
 
-        const tileFinal = await sharp(leftBg)
+        const finalTile = await sharp(baseTileBg)
             .composite(tileComposite)
             .png()
             .toBuffer();
 
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'public, max-age=86400');
-        return res.send(tileFinal);
+        return res.send(finalTile);
 
     } catch (error) {
+        console.error(error);
         res.status(500).send('Errore nella generazione');
     }
 };
