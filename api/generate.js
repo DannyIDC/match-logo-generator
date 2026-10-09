@@ -3,110 +3,79 @@ const fs = require('fs');
 const path = require('path');
 const opentype = require('opentype.js');
 
-// Carica il font una volta sola all'avvio della funzione per ottimizzare
-let font = null;
-try {
-    const fontPath = path.join(process.cwd(), 'fonts', 'Rubik-Bold.ttf'); // ASSICURATI CHE IL NOME FILE SIA ESATTO
-    if (fs.existsSync(fontPath)) {
-        font = opentype.loadSync(fontPath);
-        console.log("Font caricato con successo da:", fontPath);
-    } else {
-        console.error("ERRORE: File font non trovato al percorso:", fontPath);
-    }
-} catch (err) {
-    console.error("ERRORE critico durante il caricamento del font:", err);
-}
-
 module.exports = async (req, res) => {
     const { t1, t2, time, hname, aname, mode } = req.query;
 
     try {
-        const width = 700;
-        const height = 160;
+        const width = 500;
+        const height = 270;
 
-        // Funzione di fetch per le immagini (loghi)
         const fetchImage = async (url) => {
-            try {
-                const response = await fetch(url, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KodiLandscape/1.0)' }
-                });
-                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-                return Buffer.from(await response.arrayBuffer());
-            } catch (e) {
-                console.error(`Errore fetch ${url}:`, e);
-                return null;
-            }
+            const response = await fetch(url, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (!response.ok) throw new Error(`Errore fetch ${url}`);
+            return Buffer.from(await response.arrayBuffer());
         };
 
         if (mode === 'match_title' && t1 && t2) {
             const t1Buffer = await fetchImage(t1);
             const t2Buffer = await fetchImage(t2);
 
-            // Crea una base trasparente
+            // Sfondo pieno con il colore grigio scuro/nerastro elegante della skin Arctic Horizon 2
             const baseBg = await sharp({
-                create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+                create: { 
+                    width: width, 
+                    height: height, 
+                    channels: 4, 
+                    background: { r: 30, g: 32, b: 40, alpha: 1 } 
+                }
             }).png().toBuffer();
 
-            const logoSize = 34; // Dimensione loghi
-            let compositeOps = [];
+            const logoSize = 65;
+            const resizedT1 = await sharp(t1Buffer)
+                .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .toBuffer();
 
-            // 1. Gestione Loghi
-            if (t1Buffer) {
-                const resizedT1 = await sharp(t1Buffer)
-                    .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                    .toBuffer();
-                compositeOps.push({ input: resizedT1, top: 32, left: 145 }); // Logo 1
-            } else {
-                console.warn("Logo 1 non disponibile (URL errato o irraggiungibile)");
+            const resizedT2 = await sharp(t2Buffer)
+                .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .toBuffer();
+
+            const matchTime = time ? decodeURIComponent(time) : "18:30";
+            const homeText = hname ? decodeURIComponent(hname) : "Heidenheim";
+            const awayText = aname ? decodeURIComponent(aname) : "Kaiserslautern";
+
+            const fontFilename = 'Rubik-Bold.ttf';
+            const fontPath = path.join(process.cwd(), 'fonts', fontFilename);
+            
+            let timePaths = '';
+            let homePaths = '';
+            let awayPaths = '';
+
+            if (fs.existsSync(fontPath)) {
+                const font = opentype.loadSync(fontPath);
+                // Coordinate calibrate per il box 500x270: loghi a sinistra, testi disposti in modo pulito a destra
+                timePaths = font.getPath(matchTime, 140, 60, 26).toPathData(2);
+                homePaths = font.getPath(homeText, 140, 145, 24).toPathData(2);
+                awayPaths = font.getPath(awayText, 140, 210, 24).toPathData(2);
             }
 
-            if (t2Buffer) {
-                const resizedT2 = await sharp(t2Buffer)
-                    .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                    .toBuffer();
-                compositeOps.push({ input: resizedT2, top: 82, left: 145 }); // Logo 2
-            } else {
-                console.warn("Logo 2 non disponibile (URL errato o irraggiungibile)");
-            }
+            const svgText = `
+                <svg width="${width}" height="${height}">
+                    <path d="${timePaths}" fill="#00bfff" />
+                    <path d="${homePaths}" fill="#ffffff" />
+                    <path d="${awayPaths}" fill="#ffffff" />
+                </svg>
+            `;
 
-            // 2. Gestione Testo (con opentype.js)
-            const matchTime = time ? decodeURIComponent(time) : "";
-            const homeText = hname ? decodeURIComponent(hname) : "Casa";
-            const awayText = aname ? decodeURIComponent(aname) : "Ospite";
-
-            let textSvg = `<svg width="${width}" height="${height}">`;
-
-            if (font) {
-                // Converte il testo in percorsi SVG (Path data)
-                const timePath = font.getPath(matchTime, 10, 92, 32).toPathData(2);
-                const sepPath = font.getPath('|', 115, 92, 32).toPathData(2);
-                const homePath = font.getPath(homeText, 195, 62, 26).toPathData(2);
-                const awayPath = font.getPath(awayText, 195, 112, 26).toPathData(2);
-
-                textSvg += `
-                    <path d="${timePath}" fill="#ffffff" />
-                    <path d="${sepPath}" fill="#aaaaaa" />
-                    <path d="${homePath}" fill="#ffffff" />
-                    <path d="${awayPath}" fill="#ffffff" />
-                `;
-            } else {
-                // Fallback testuale se opentype.js non ha caricato il font (meno bello ma leggibile)
-                textSvg += `
-                    <text x="10" y="95" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#ffffff">${matchTime}</text>
-                    <text x="115" y="95" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#aaaaaa">|</text>
-                    <text x="195" y="62" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#ffffff">${homeText}</text>
-                    <text x="195" y="112" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#ffffff">${awayText}</text>
-                `;
-            }
-            textSvg += '</svg>';
-
-            const textBuffer = Buffer.from(textSvg, 'utf-8');
-
-            // 3. Composizione finale
-            compositeOps.push({ input: textBuffer, top: 0, left: 0 });
+            const svgBuffer = Buffer.from(svgText, 'utf-8');
 
             const finalImage = await sharp(baseBg)
-                .composite(compositeOps)
+                .composite([
+                    { input: svgBuffer, top: 0, left: 0 },
+                    { input: resizedT1, top: 105, left: 40 },  // Logo squadra di casa
+                    { input: resizedT2, top: 175, left: 40 }   // Logo squadra trasferta
+                ])
                 .png()
                 .toBuffer();
 
@@ -117,7 +86,7 @@ module.exports = async (req, res) => {
 
         res.status(400).send('Parametri non validi');
     } catch (error) {
-        console.error("Errore critico nella generazione:", error);
-        res.status(500).send('Errore interno nella generazione del titolo');
+        console.error(error);
+        res.status(500).send('Errore nella generazione del landscape 500x270');
     }
 };
