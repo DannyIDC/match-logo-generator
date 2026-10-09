@@ -15,37 +15,30 @@ module.exports = async (req, res) => {
             return Buffer.from(await response.arrayBuffer());
         };
 
-        // 1. MODALITÀ FANART: Logo competizione al centro + loghi squadre ai lati (su sfondo neutro/scuro o campo)
-        if (mode === 'fanart_comp' && t1 && t2 && comp) {
+        // MODALITÀ KEYART: Converte qualsiasi logo/immagine in una keyart verticale centrata ed elegante
+        if (mode === 'keyart' && comp) {
             const compBuffer = await fetchImage(comp);
-            const t1Buffer = await fetchImage(t1);
-            const t2Buffer = await fetchImage(t2);
 
-            // Sfondo scuro elegante per il fanart
+            // Sfondo scuro di base
             const baseBg = await sharp({
                 create: { width: width, height: height, channels: 4, background: { r: 15, g: 23, b: 42, alpha: 1 } }
             }).png().toBuffer();
 
-            // Logo competizione al centro
+            // Ridimensionamento stretto e verticale (es. altezza 240px, larghezza proporzionata ma contenuta)
             const resizedComp = await sharp(compBuffer)
-                .resize(130, 160, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .resize(160, 240, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .toBuffer();
 
-            // Loghi delle due squadre posizionati ai lati
-            const resizedT1 = await sharp(t1Buffer)
-                .resize(95, 95, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                .toBuffer();
-
-            const resizedT2 = await sharp(t2Buffer)
-                .resize(95, 95, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                .toBuffer();
+            const meta = await sharp(resizedComp).metadata();
+            const cWidth = meta.width || 150;
+            const cHeight = meta.height || 240;
 
             const finalImage = await sharp(baseBg)
-                .composite([
-                    { input: resizedComp, top: 55, left: 185 }, // Centro
-                    { input: resizedT1, top: 88, left: 45 },    // Sinistra (Squadra di casa)
-                    { input: resizedT2, top: 88, left: 360 }    // Destra (Squadra ospite)
-                ])
+                .composite([{
+                    input: resizedComp,
+                    top: Math.floor((height - cHeight) / 2),
+                    left: Math.floor((width - cWidth) / 2) // Perfettamente centrata in mezzo allo schermo
+                }])
                 .png()
                 .toBuffer();
 
@@ -54,7 +47,7 @@ module.exports = async (req, res) => {
             return res.send(finalImage);
         }
 
-        // 2. MODALITÀ STANDARD (Default): Solo i loghi delle squadre divisi a metà con i colori personalizzati
+        // MODALITÀ STANDARD (Default): Loghi delle squadre divisi a metà con i colori
         if (!t1 || !t2) {
             return res.status(400).send('Parametri t1 e t2 obbligatori');
         }
