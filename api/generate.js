@@ -1,7 +1,28 @@
 const sharp = require('sharp');
-const fs = require('fs');
-const path = require('path');
 const opentype = require('opentype.js');
+
+// Cache globale per non riscaricare il font a ogni richiesta
+let cachedFont = null;
+
+async function getFont() {
+    if (cachedFont) return cachedFont;
+    try {
+        // Sostituisci questo URL con il link "Raw" del tuo file font su GitHub 
+        // (es. https://raw.githubusercontent.com/tuo-utente/tuo-repo/main/fonts/Rubik-Bold.ttf)
+        // Oppure puoi usare un font di pubblico dominio temporaneo per testare:
+        const fontUrl = 'https://raw.githubusercontent.com/tuo-utente/tuo-repo/main/fonts/Rubik-Bold.ttf';
+        
+        const response = await fetch(fontUrl);
+        if (!response.ok) throw new Error('Impossibile scaricare il font');
+        const arrayBuffer = await response.arrayBuffer();
+        
+        cachedFont = opentype.parse(arrayBuffer);
+        return cachedFont;
+    } catch (e) {
+        console.error("Errore caricamento font da remoto:", e);
+        return null;
+    }
+}
 
 module.exports = async (req, res) => {
     const { t1, t2, time, hname, aname, mode } = req.query;
@@ -26,7 +47,7 @@ module.exports = async (req, res) => {
                 create: { width: width, height: height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
             }).png().toBuffer();
 
-            const logoSize = 34;
+            const logoSize = 38;
             const resizedT1 = await sharp(t1Buffer)
                 .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                 .toBuffer();
@@ -39,26 +60,19 @@ module.exports = async (req, res) => {
             const homeText = hname ? decodeURIComponent(hname) : "Heidenheim";
             const awayText = aname ? decodeURIComponent(aname) : "Kaiserslautern";
 
-            // Percorso del font nella cartella fonts del repository
-            const fontFilename = 'Rubik-Bold.ttf'; // Assicurati che corrisponda al nome esatto del file caricato
-            const fontPath = path.join(process.cwd(), 'fonts', fontFilename);
-            
             let timePaths = '';
             let sepPaths = '';
             let homePaths = '';
             let awayPaths = '';
 
-            if (fs.existsSync(fontPath)) {
-                const font = opentype.loadSync(fontPath);
-                
-                // Conversione diretta del testo in tracciati vettoriali geometrici (senza bisogno di font di sistema)
-                timePaths = font.getPath(matchTime, 10, 92, 32).toPathData(2);
-                sepPaths = font.getPath('|', 115, 92, 32).toPathData(2);
-                homePaths = font.getPath(homeText, 195, 58, 26).toPathData(2);
-                awayPaths = font.getPath(awayText, 195, 108, 26).toPathData(2);
+            const font = await getFont();
+            if (font) {
+                timePaths = font.getPath(matchTime, 130, 95, 30).toPathData(2);
+                sepPaths = font.getPath('|', 245, 95, 30).toPathData(2);
+                homePaths = font.getPath(homeText, 280, 62, 24).toPathData(2);
+                awayPaths = font.getPath(awayText, 280, 112, 24).toPathData(2);
             }
 
-            // SVG pulito basato solo su forme geometriche vettoriali (<path>)
             const svgText = `
                 <svg width="${width}" height="${height}">
                     <path d="${timePaths}" fill="#ffffff" />
@@ -73,8 +87,8 @@ module.exports = async (req, res) => {
             const finalImage = await sharp(baseBg)
                 .composite([
                     { input: svgBuffer, top: 0, left: 0 },
-                    { input: resizedT1, top: 32, left: 145 },
-                    { input: resizedT2, top: 82, left: 145 }
+                    { input: resizedT1, top: 32, left: 30 },
+                    { input: resizedT2, top: 82, left: 30 }
                 ])
                 .png()
                 .toBuffer();
