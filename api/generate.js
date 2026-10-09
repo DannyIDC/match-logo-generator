@@ -10,7 +10,7 @@ async function getFont() {
         // Sostituisci questo URL con il link "Raw" del tuo file font su GitHub 
         // (es. https://raw.githubusercontent.com/tuo-utente/tuo-repo/main/fonts/Rubik-Bold.ttf)
         // Oppure puoi usare un font di pubblico dominio temporaneo per testare:
-        const fontUrl = 'https://raw.githubusercontent.com/tuo-utente/tuo-repo/main/fonts/Rubik-Bold.ttf';
+        const fontUrl = 'https://github.com/DannyIDC/match-logo-generator/raw/refs/heads/main/fonts/Rubik-Bold.ttf';
         
         const response = await fetch(fontUrl);
         if (!response.ok) throw new Error('Impossibile scaricare il font');
