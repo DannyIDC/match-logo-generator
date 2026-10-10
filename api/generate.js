@@ -116,7 +116,7 @@ module.exports = async (req, res) => {
                     .toBuffer();
                 
                 const left = Math.floor((width - logoSize) / 2) + 40;
-                const top = 50; // Valore originale preservato
+                const top = 80; // Valore originale preservato
 
                 // 1. Alone LED intenso e diffuso sui bordi
                 const glowBlur = 18;
