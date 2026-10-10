@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
                     .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
                 
-                const left = Math.floor((width - logoSize) / 2);
+                const left = Math.floor((width - logoSize) / 2) + 40;
                 const top = 50; // Valore originale preservato
 
                 // 1. Alone LED intenso e diffuso sui bordi
