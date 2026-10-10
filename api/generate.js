@@ -21,33 +21,32 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Ingrandito per eguagliare i titoli della skin)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Testo ingrandito a 80px, pari altezza loghi)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
-            const width = 900;
+            const width = 1100;
             const height = 280;
 
-            // Canvas trasparente senza sfondo
             const baseBg = await sharp({
                 create: { width: width, height: height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 100; // Loghi ingranditi a 100px per bilanciare il testo grande
+            const logoSize = 100; // Loghi alti 100px
 
-            // Loghi posizionati in verticale a sinistra con offset ricalibrati
+            // Loghi posizionati in verticale a sinistra
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 25, left: 195 });
+                compositeOps.push({ input: r1, top: 25, left: 190 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 145, left: 195 });
+                compositeOps.push({ input: r2, top: 145, left: 190 });
             }
 
-            const matchTime = time ? decodeURIComponent(time) : "18:30";
-            const homeText = hname ? decodeURIComponent(hname) : "Heidenheim";
-            const awayText = aname ? decodeURIComponent(aname) : "Kaiserslautern";
+            const matchTime = time ? decodeURIComponent(time) : "13:00";
+            const homeText = hname ? decodeURIComponent(hname) : "Magdeburg";
+            const awayText = aname ? decodeURIComponent(aname) : "Hannover 96";
 
             const fontPath = path.join(process.cwd(), 'fonts', 'Rubik-Bold.ttf');
             let svgText = `<svg width="${width}" height="${height}">`;
@@ -55,11 +54,12 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    // Dimensione font aumentata a 52 per l'orario e 46 per le squadre
-                    const timePath = font.getPath(matchTime, 15, 155, 52).toPathData(2);
-                    const homePath = font.getPath(homeText, 315, 95, 46).toPathData(2);
-                    const awayPath = font.getPath(awayText, 315, 215, 46).toPathData(2);
-                    const sepPath = font.getPath('|', 165, 155, 52).toPathData(2);
+                    const fontSize = 80; // Font ingrandito a 80px per uguagliare l'altezza dei loghi
+                    
+                    const timePath = font.getPath(matchTime, 15, 165, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 150, 165, fontSize).toPathData(2);
+                    const homePath = font.getPath(homeText, 310, 100, fontSize).toPathData(2);
+                    const awayPath = font.getPath(awayText, 310, 220, fontSize).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -69,10 +69,10 @@ module.exports = async (req, res) => {
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="15" y="155" font-family="Arial" font-size="52" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="165" y="155" font-family="Arial" font-size="52" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="315" y="95" font-family="Arial" font-size="46" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="315" y="215" font-family="Arial" font-size="46" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="15" y="165" font-family="Arial" font-size="80" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="150" y="165" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="310" y="100" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="310" y="220" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
