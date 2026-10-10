@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout bilanciato e proporzionato)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout perfettamente bilanciato)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const width = 1500;
@@ -32,20 +32,20 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 105; // Loghi ottimizzati per bilanciarli col testo
+            const logoSize = 105; // Loghi ridimensionati a 105px
 
             // Posizione verticale dei loghi
-            const top1 = 25;
-            const top2 = 185;
+            const top1 = 20;
+            const top2 = 175;
 
-            // Loghi posizionati a 420
+            // Loghi posizionati a 470
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: top1, left: 420 });
+                compositeOps.push({ input: r1, top: top1, left: 470 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: top2, left: 420 });
+                compositeOps.push({ input: r2, top: top2, left: 470 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "13:00";
@@ -60,13 +60,13 @@ module.exports = async (req, res) => {
                     const font = opentype.loadSync(fontPath);
                     const fontSize = 140; 
                     
-                    // Orario a 30 e barra verticale posizionata in modo bilanciato a 380
-                    const timePath = font.getPath(matchTime, 30, 205, fontSize).toPathData(2);
-                    const sepPath = font.getPath('|', 380, 205, fontSize).toPathData(2);
+                    // Orario a sinistra e barra verticale spostata a 430 per evitare sovrapposizioni
+                    const timePath = font.getPath(matchTime, 20, 205, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 430, 205, fontSize).toPathData(2);
                     
-                    // Nomi delle squadre spostati a 560 per chiudere lo spazio vuoto dopo i loghi
-                    const homePath = font.getPath(homeText, 560, top1 + 82, fontSize).toPathData(2);
-                    const awayPath = font.getPath(awayText, 560, top2 + 82, fontSize).toPathData(2);
+                    // Nomi delle squadre ravvicinati ai loghi (595) e abbassati per centratura verticale perfetta
+                    const homePath = font.getPath(homeText, 595, top1 + 100, fontSize).toPathData(2);
+                    const awayPath = font.getPath(awayText, 595, top2 + 100, fontSize).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -76,10 +76,10 @@ module.exports = async (req, res) => {
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="30" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="380" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="560" y="${top1 + 82}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="560" y="${top2 + 82}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="20" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="430" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="595" y="${top1 + 100}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="595" y="${top2 + 100}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
