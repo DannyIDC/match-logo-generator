@@ -21,27 +21,27 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout distanziato per evitare sovrapposizioni)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Testo ingrandito a 110px, loghi a 130px)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
-            const width = 1300; // Canvas ulteriormente allargata
-            const height = 280;
+            const width = 1500;
+            const height = 320;
 
             const baseBg = await sharp({
                 create: { width: width, height: height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 100; // Loghi alti 100px
+            const logoSize = 130; // Loghi alti 130px
 
-            // Loghi spostati ancora più a destra
+            // Loghi posizionati in verticale a sinistra/centro
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 25, left: 330 });
+                compositeOps.push({ input: r1, top: 15, left: 350 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 145, left: 330 });
+                compositeOps.push({ input: r2, top: 165, left: 350 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "13:00";
@@ -54,13 +54,12 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    const fontSize = 80; 
+                    const fontSize = 110; // Font ingrandito a 110px
                     
-                    // Orario a sinistra, barra separatrice e nomi delle squadre ben distanziati a destra
-                    const timePath = font.getPath(matchTime, 20, 165, fontSize).toPathData(2);
-                    const sepPath = font.getPath('|', 270, 165, fontSize).toPathData(2);
-                    const homePath = font.getPath(homeText, 450, 100, fontSize).toPathData(2);
-                    const awayPath = font.getPath(awayText, 450, 220, fontSize).toPathData(2);
+                    const timePath = font.getPath(matchTime, 20, 200, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 290, 200, fontSize).toPathData(2);
+                    const homePath = font.getPath(homeText, 500, 110, fontSize).toPathData(2);
+                    const awayPath = font.getPath(awayText, 500, 260, fontSize).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -70,10 +69,10 @@ module.exports = async (req, res) => {
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="20" y="165" font-family="Arial" font-size="80" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="270" y="165" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="450" y="100" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="450" y="220" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="20" y="200" font-family="Arial" font-size="110" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="290" y="200" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="500" y="110" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="500" y="260" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
