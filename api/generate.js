@@ -4,7 +4,7 @@ const path = require('path');
 const opentype = require('opentype.js');
 
 module.exports = async (req, res) => {
-    const { t1, t2, time, hname, aname, mode, bg1, bg2 } = req.query;
+    const { t1, t2, time, hname, aname, mode, bg1, bg2, bg, logo } = req.query;
 
     try {
         const fetchImage = async (url) => {
@@ -90,6 +90,47 @@ module.exports = async (req, res) => {
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('Cache-Control', 'public, max-age=86400');
             return res.send(finalImg);
+        }
+
+        // -----------------------------------------------------------------
+        // MODALITÀ 3: SFONDO COMPETIZIONE (Stadio pulito + Logo centrale)
+        // -----------------------------------------------------------------
+        if (mode === 'competition') {
+            const width = 1920;
+            const height = 1080;
+
+            const [bgBuffer, logoBuffer] = await Promise.all([
+                fetchImage(bg),
+                fetchImage(logo)
+            ]);
+
+            let baseImg;
+            if (bgBuffer) {
+                baseImg = await sharp(bgBuffer).resize(width, height, { fit: 'cover' }).toBuffer();
+            } else {
+                baseImg = await sharp({
+                    create: { width: width, height: height, channels: 4, background: { r: 15, g: 15, b: 20, alpha: 1 } }
+                }).png().toBuffer();
+            }
+
+            let compositeOps = [];
+
+            if (logoBuffer) {
+                const logoSize = 450; // Dimensione del logo al centro dello sfondo
+                const resizedLogo = await sharp(logoBuffer)
+                    .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .toBuffer();
+                
+                const left = Math.floor((width - logoSize) / 2);
+                const top = Math.floor((height - logoSize) / 2);
+
+                compositeOps.push({ input: resizedLogo, top: top, left: left });
+            }
+
+            const finalCompImg = await sharp(baseImg).composite(compositeOps).png().toBuffer();
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.send(finalCompImg);
         }
 
         // -----------------------------------------------------------------
