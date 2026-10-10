@@ -4,7 +4,7 @@ const path = require('path');
 const opentype = require('opentype.js');
 
 module.exports = async (req, res) => {
-    const { t1, t2, time, hname, aname, mode, bg1, bg2 }	= req.query;
+    const { t1, t2, time, hname, aname, mode, bg1, bg2 } = req.query;
 
     try {
         const fetchImage = async (url) => {
@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout con spaziature e allineamenti corretti)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout con spaziature e proporzioni corrette)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const width = 1500;
@@ -32,19 +32,20 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 140; // Loghi alti 140px
+            const logoSize = 110; // Loghi ridotti a 110px per bilanciarli col testo
 
-            // Posizione verticale dei loghi: Primo logo in alto, secondo logo in basso
-            const top1 = 20;
-            const top2 = 160;
+            // Posizione verticale dei loghi: Primo in alto, secondo in basso
+            const top1 = 30;
+            const top2 = 175;
 
+            // Loghi spostati a 450 per evitare contatti con la barra
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: top1, left: 430 });
+                compositeOps.push({ input: r1, top: top1, left: 450 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: top2, left: 430 });
+                compositeOps.push({ input: r2, top: top2, left: 450 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "13:00";
@@ -59,13 +60,13 @@ module.exports = async (req, res) => {
                     const font = opentype.loadSync(fontPath);
                     const fontSize = 140; 
                     
-                    // Orario e barra verticale centrati e distanziati a 390
+                    // Barra verticale spostata a 420 per dare ampio respiro all'orario
                     const timePath = font.getPath(matchTime, 20, 205, fontSize).toPathData(2);
-                    const sepPath = font.getPath('|', 390, 205, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 420, 205, fontSize).toPathData(2);
                     
-                    // Testi delle squadre allineati verticalmente al centro dei rispettivi loghi (top1 + 95 e top2 + 95)
-                    const homePath = font.getPath(homeText, 600, top1 + 98, fontSize).toPathData(2);
-                    const awayPath = font.getPath(awayText, 600, top2 + 98, fontSize).toPathData(2);
+                    // Testi delle squadre allineati verticalmente al centro dei rispettivi loghi
+                    const homePath = font.getPath(homeText, 630, top1 + 78, fontSize).toPathData(2);
+                    const awayPath = font.getPath(awayText, 630, top2 + 78, fontSize).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -76,9 +77,9 @@ module.exports = async (req, res) => {
                 } catch (err) {
                     svgText += `
                         <text x="20" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="390" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="600" y="${top1 + 98}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="600" y="${top2 + 98}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="420" y="205" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="630" y="${top1 + 78}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="630" y="${top2 + 78}" font-family="Arial" font-size="140" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
