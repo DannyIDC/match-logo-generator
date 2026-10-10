@@ -93,7 +93,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 3: SFONDO COMPETIZIONE (Rimuove il blocco centrale e mette il nuovo logo)
+        // MODALITÀ 3: SFONDO COMPETIZIONE (Stadio pulito + Logo centrale)
         // -----------------------------------------------------------------
         if (mode === 'competition') {
             const width = 1920;
@@ -102,40 +102,33 @@ module.exports = async (req, res) => {
             const bgBuffer = await fetchImage(bg);
             const logoBuffer = await fetchImage(logo);
 
+            let baseImg;
             if (bgBuffer) {
-                // Standardizza l'immagine di sfondo alle dimensioni 1920x1080
-                const baseResized = await sharp(bgBuffer).resize(width, height, { fit: 'cover' }).toBuffer();
-
-                // Rimuove il blocco centrale clonando una porzione di sfondo adiacente per coprirlo
-                const boxWidth = 460;
-                const boxLeft = Math.floor((width - boxWidth) / 2);
-                const sourceX = boxLeft - boxWidth;
-
-                const patchBuffer = await sharp(baseResized)
-                    .extract({ left: sourceX > 0 ? sourceX : 0, top: 0, width: boxWidth, height: height })
-                    .toBuffer();
-
-                let compositeOps = [
-                    { input: patchBuffer, top: 0, left: boxLeft }
-                ];
-
-                // Sovrappone il nuovo logo pulito al centro
-                if (logoBuffer) {
-                    const logoSize = 400;
-                    const resizedLogo = await sharp(logoBuffer)
-                        .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                        .toBuffer();
-                    
-                    const logoLeft = Math.floor((width - logoSize) / 2);
-                    const logoTop = Math.floor((height - logoSize) / 2);
-                    compositeOps.push({ input: resizedLogo, top: logoTop, left: logoLeft });
-                }
-
-                const finalCompImg = await sharp(baseResized).composite(compositeOps).png().toBuffer();
-                res.setHeader('Content-Type', 'image/png');
-                res.setHeader('Cache-Control', 'public, max-age=86400');
-                return res.send(finalCompImg);
+                baseImg = await sharp(bgBuffer).resize(width, height, { fit: 'cover' }).toBuffer();
+            } else {
+                baseImg = await sharp({
+                    create: { width: width, height: height, channels: 4, background: { r: 15, g: 15, b: 20, alpha: 1 } }
+                }).png().toBuffer();
             }
+
+            let compositeOps = [];
+
+            if (logoBuffer) {
+                const logoSize = 400; // Dimensione del logo al centro
+                const resizedLogo = await sharp(logoBuffer)
+                    .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .toBuffer();
+                
+                const left = Math.floor((width - logoSize) / 2);
+                const top = Math.floor((height - logoSize) / 2);
+
+                compositeOps.push({ input: resizedLogo, top: top, left: left });
+            }
+
+            const finalCompImg = await sharp(baseImg).composite(compositeOps).png().toBuffer();
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.send(finalCompImg);
         }
 
         // -----------------------------------------------------------------
