@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Spaziatura simmetrica ed equilibrata)
+        // MODALITÀ 1: CLEARLOGO IN ALTO
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const width = 1500;
@@ -32,13 +32,11 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 105; // Loghi ottimizzati a 105px
+            const logoSize = 105;
 
-            // Posizione verticale dei loghi
             const top1 = 20;
             const top2 = 175;
 
-            // Loghi spostati simmetricamente a 485
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
                 compositeOps.push({ input: r1, top: top1, left: 485 });
@@ -60,11 +58,9 @@ module.exports = async (req, res) => {
                     const font = opentype.loadSync(fontPath);
                     const fontSize = 140; 
                     
-                    // Orario e barra verticale (barra posizionata a 430 per simmetria perfetta)
                     const timePath = font.getPath(matchTime, 20, 205, fontSize).toPathData(2);
                     const sepPath = font.getPath('|', 430, 205, fontSize).toPathData(2);
                     
-                    // Nomi delle squadre posizionati a 610 (equidistanti dai loghi)
                     const homePath = font.getPath(homeText, 610, top1 + 100, fontSize).toPathData(2);
                     const awayPath = font.getPath(awayText, 610, top2 + 100, fontSize).toPathData(2);
 
@@ -93,7 +89,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 3: SFONDO COMPETIZIONE (Stadio pulito + Logo centrale)
+        // MODALITÀ 3: SFONDO COMPETIZIONE (Logo spostato più in alto sul cerchio)
         // -----------------------------------------------------------------
         if (mode === 'competition') {
             const width = 1920;
@@ -114,13 +110,16 @@ module.exports = async (req, res) => {
             let compositeOps = [];
 
             if (logoBuffer) {
-                const logoSize = 400; // Dimensione del logo al centro
+                const logoSize = 400; 
                 const resizedLogo = await sharp(logoBuffer)
                     .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
                 
                 const left = Math.floor((width - logoSize) / 2);
-                const top = Math.floor((height - logoSize) / 2);
+                
+                // Spostato più in alto rispetto al centro geometrico (es. 330px dall'alto invece che ~340)
+                // Modifica questo valore se vuoi alzarlo o abbassarlo ulteriormente millimetricamente:
+                const top = 300; 
 
                 compositeOps.push({ input: resizedLogo, top: top, left: left });
             }
@@ -132,7 +131,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 2: TILE MATCH IN BASSO (Invariata)
+        // MODALITÀ 2: TILE MATCH IN BASSO
         // -----------------------------------------------------------------
         const width = 500;
         const height = 270;
