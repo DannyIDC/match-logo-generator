@@ -32,16 +32,16 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 140; // Loghi alti 130px
+            const logoSize = 140; // Loghi alti 140px
 
-            // Loghi spostati a 400 per dare ampio respiro all'orario e alla barra
+            // Loghi spostati a 440 per dare ampio respiro all'orario e alla barra
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 15, left: 420 });
+                compositeOps.push({ input: r1, top: 15, left: 440 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 165, left: 420 });
+                compositeOps.push({ input: r2, top: 165, left: 440 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "13:00";
@@ -54,11 +54,11 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    const fontSize = 130; 
+                    const fontSize = 140; 
                     
                     // Barra a 340 e nomi delle squadre a 550
                     const timePath = font.getPath(matchTime, 20, 200, fontSize).toPathData(2);
-                    const sepPath = font.getPath('|', 360, 200, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 380, 200, fontSize).toPathData(2);
                     const homePath = font.getPath(homeText, 550, 110, fontSize).toPathData(2);
                     const awayPath = font.getPath(awayText, 550, 260, fontSize).toPathData(2);
 
