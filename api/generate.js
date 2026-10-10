@@ -21,10 +21,10 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Alta definizione 800x280, trasparente, proporzionato)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Ingrandito per eguagliare i titoli della skin)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
-            const width = 800;
+            const width = 900;
             const height = 280;
 
             // Canvas trasparente senza sfondo
@@ -33,16 +33,16 @@ module.exports = async (req, res) => {
             }).png().toBuffer();
 
             let compositeOps = [];
-            const logoSize = 75; // Loghi più grandi e definiti
+            const logoSize = 100; // Loghi ingranditi a 100px per bilanciare il testo grande
 
-            // Loghi posizionati in verticale a sinistra
+            // Loghi posizionati in verticale a sinistra con offset ricalibrati
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 40, left: 175 });
+                compositeOps.push({ input: r1, top: 25, left: 195 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 145, left: 175 });
+                compositeOps.push({ input: r2, top: 145, left: 195 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "18:30";
@@ -55,11 +55,11 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    // Orario affiancato a sinistra seguito dal separatore
-                    const timePath = font.getPath(matchTime, 15, 155, 38).toPathData(2);
-                    const homePath = font.getPath(homeText, 275, 95, 34).toPathData(2);
-                    const awayPath = font.getPath(awayText, 275, 200, 34).toPathData(2);
-                    const sepPath = font.getPath('|', 135, 155, 38).toPathData(2);
+                    // Dimensione font aumentata a 52 per l'orario e 46 per le squadre
+                    const timePath = font.getPath(matchTime, 15, 155, 52).toPathData(2);
+                    const homePath = font.getPath(homeText, 315, 95, 46).toPathData(2);
+                    const awayPath = font.getPath(awayText, 315, 215, 46).toPathData(2);
+                    const sepPath = font.getPath('|', 165, 155, 52).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -69,10 +69,10 @@ module.exports = async (req, res) => {
                     `;
                 } catch (err) {
                     svgText += `
-                        <text x="15" y="155" font-family="Arial" font-size="38" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="135" y="155" font-family="Arial" font-size="38" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="275" y="95" font-family="Arial" font-size="34" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="275" y="200" font-family="Arial" font-size="34" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="15" y="155" font-family="Arial" font-size="52" font-weight="bold" fill="#00bfff">${matchTime}</text>
+                        <text x="165" y="155" font-family="Arial" font-size="52" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="315" y="95" font-family="Arial" font-size="46" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="315" y="215" font-family="Arial" font-size="46" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
