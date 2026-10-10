@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
                     .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
                 
-                const left = Math.floor((width - logoSize) / 2);
+                const left = Math.floor((width - logoSize) / 2) + 40;
                 
                 // Spostato più in alto rispetto al centro geometrico (es. 330px dall'alto invece che ~340)
                 // Modifica questo valore se vuoi alzarlo o abbassarlo ulteriormente millimetricamente:
