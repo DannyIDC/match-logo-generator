@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO
+        // MODALITÀ 1: CLEARLOGO IN ALTO (match_title)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const width = 1500;
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 3: SFONDO COMPETIZIONE (Logo spostato più in alto sul cerchio)
+        // MODALITÀ 3: SFONDO COMPETIZIONE (Con centraggio reale e LED Glow)
         // -----------------------------------------------------------------
         if (mode === 'competition') {
             const width = 1920;
@@ -115,13 +115,33 @@ module.exports = async (req, res) => {
                     .resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .toBuffer();
                 
-                const left = Math.floor((width - logoSize) / 2) + 40;
-                
-                // Spostato più in alto rispetto al centro geometrico (es. 330px dall'alto invece che ~340)
-                // Modifica questo valore se vuoi alzarlo o abbassarlo ulteriormente millimetricamente:
-                const top = 50; 
+                // Ricaviamo le dimensioni reali dopo il ridimensionamento per il perfetto allineamento orizzontale
+                const metadata = await sharp(resizedLogo).metadata();
+                const actualWidth = metadata.width;
 
-                compositeOps.push({ input: resizedLogo, top: top, left: left });
+                const left = Math.floor((width - actualWidth) / 2);
+                const top = 460; // Altezza definita per posizionare il logo nel cerchio di centrocampo
+
+                // 1. Creazione dell'effetto LED / Alone luminoso (Glow) dietro al logo
+                const glowLogo = await sharp(resizedLogo)
+                    .modulate({ brightness: 2.5 })
+                    .blur(22)
+                    .toBuffer();
+
+                // 2. Inserimento dell'alone luminoso (sotto) con fusione 'screen'
+                compositeOps.push({ 
+                    input: glowLogo, 
+                    top: top - Math.floor((22 * 2) / 4), 
+                    left: left - Math.floor((22 * 2) / 4),
+                    blend: 'screen' 
+                });
+
+                // 3. Inserimento del logo originale nitido (sopra)
+                compositeOps.push({ 
+                    input: resizedLogo, 
+                    top: top, 
+                    left: left 
+                });
             }
 
             const finalCompImg = await sharp(baseImg).composite(compositeOps).png().toBuffer();
@@ -131,7 +151,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 2: TILE MATCH IN BASSO
+        // MODALITÀ 2: TILE MATCH IN BASSO (Default)
         // -----------------------------------------------------------------
         const width = 500;
         const height = 270;
