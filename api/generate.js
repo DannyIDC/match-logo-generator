@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
         }
 
         // -----------------------------------------------------------------
-        // MODALITÀ 3: SFONDO COMPETIZIONE (Con effetto LED/glow aggiunto)
+        // MODALITÀ 3: SFONDO COMPETIZIONE (Con Glow LED intenso sui bordi)
         // -----------------------------------------------------------------
         if (mode === 'competition') {
             const width = 1920;
@@ -118,21 +118,30 @@ module.exports = async (req, res) => {
                 const left = Math.floor((width - logoSize) / 2);
                 const top = 50; // Valore originale preservato
 
-                // 1. Creazione dell'effetto LED / Alone luminoso (Glow)
+                // 1. Alone LED intenso e diffuso sui bordi
+                const glowBlur = 18;
                 const glowLogo = await sharp(resizedLogo)
-                    .modulate({ brightness: 2.5 })
-                    .blur(22)
+                    .modulate({ brightness: 4.0, saturation: 1.5 })
+                    .blur(glowBlur)
                     .toBuffer();
 
-                // 2. Inserimento dell'alone luminoso (sotto)
+                // 2. Primo livello di glow più ampio
                 compositeOps.push({ 
                     input: glowLogo, 
-                    top: top - Math.floor((22 * 2) / 4), 
-                    left: left - Math.floor((22 * 2) / 4),
+                    top: top - glowBlur, 
+                    left: left - glowBlur,
+                    blend: 'screen' 
+                });
+                
+                // Secondo livello di glow più stretto per rinforzare i bordi
+                compositeOps.push({ 
+                    input: glowLogo, 
+                    top: top - Math.floor(glowBlur / 2), 
+                    left: left - Math.floor(glowBlur / 2),
                     blend: 'screen' 
                 });
 
-                // 3. Inserimento del logo originale nitido (sopra)
+                // 3. Inserimento del logo originale nitido in primo piano
                 compositeOps.push({ input: resizedLogo, top: top, left: left });
             }
 
