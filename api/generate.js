@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         const [t1Buffer, t2Buffer] = await Promise.all([fetchImage(t1), fetchImage(t2)]);
 
         // -----------------------------------------------------------------
-        // MODALITÀ 1: CLEARLOGO IN ALTO (Testo ingrandito a 110px, loghi a 130px)
+        // MODALITÀ 1: CLEARLOGO IN ALTO (Layout con spaziature corrette)
         // -----------------------------------------------------------------
         if (mode === 'match_title') {
             const width = 1500;
@@ -34,14 +34,14 @@ module.exports = async (req, res) => {
             let compositeOps = [];
             const logoSize = 130; // Loghi alti 130px
 
-            // Loghi posizionati in verticale a sinistra/centro
+            // Loghi spostati a 400 per dare ampio respiro all'orario e alla barra
             if (t1Buffer) {
                 const r1 = await sharp(t1Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r1, top: 15, left: 350 });
+                compositeOps.push({ input: r1, top: 15, left: 400 });
             }
             if (t2Buffer) {
                 const r2 = await sharp(t2Buffer).resize(logoSize, logoSize, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
-                compositeOps.push({ input: r2, top: 165, left: 350 });
+                compositeOps.push({ input: r2, top: 165, left: 400 });
             }
 
             const matchTime = time ? decodeURIComponent(time) : "13:00";
@@ -54,12 +54,13 @@ module.exports = async (req, res) => {
             if (fs.existsSync(fontPath)) {
                 try {
                     const font = opentype.loadSync(fontPath);
-                    const fontSize = 110; // Font ingrandito a 110px
+                    const fontSize = 110; 
                     
+                    // Barra a 340 e nomi delle squadre a 550
                     const timePath = font.getPath(matchTime, 20, 200, fontSize).toPathData(2);
-                    const sepPath = font.getPath('|', 290, 200, fontSize).toPathData(2);
-                    const homePath = font.getPath(homeText, 500, 110, fontSize).toPathData(2);
-                    const awayPath = font.getPath(awayText, 500, 260, fontSize).toPathData(2);
+                    const sepPath = font.getPath('|', 340, 200, fontSize).toPathData(2);
+                    const homePath = font.getPath(homeText, 550, 110, fontSize).toPathData(2);
+                    const awayPath = font.getPath(awayText, 550, 260, fontSize).toPathData(2);
 
                     svgText += `
                         <path d="${timePath}" fill="#00bfff" />
@@ -70,9 +71,9 @@ module.exports = async (req, res) => {
                 } catch (err) {
                     svgText += `
                         <text x="20" y="200" font-family="Arial" font-size="110" font-weight="bold" fill="#00bfff">${matchTime}</text>
-                        <text x="290" y="200" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
-                        <text x="500" y="110" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${homeText}</text>
-                        <text x="500" y="260" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${awayText}</text>
+                        <text x="340" y="200" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff" opacity="0.6">|</text>
+                        <text x="550" y="110" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${homeText}</text>
+                        <text x="550" y="260" font-family="Arial" font-size="110" font-weight="bold" fill="#ffffff">${awayText}</text>
                     `;
                 }
             }
