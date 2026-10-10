@@ -119,7 +119,7 @@ module.exports = async (req, res) => {
                 
                 // Spostato più in alto rispetto al centro geometrico (es. 330px dall'alto invece che ~340)
                 // Modifica questo valore se vuoi alzarlo o abbassarlo ulteriormente millimetricamente:
-                const top = 250; 
+                const top = 50; 
 
                 compositeOps.push({ input: resizedLogo, top: top, left: left });
             }
